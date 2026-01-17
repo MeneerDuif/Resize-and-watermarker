@@ -1,25 +1,27 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import ReactDOM from 'react-dom/client';
-import JSZip from 'https://esm.sh/jszip@3.10.1';
+import { createRoot } from 'react-dom/client';
+import JSZip from 'jszip';
 
-// --- TYPES ---
+// --- CONSTANTS ---
 
-enum WatermarkPosition {
-  TOP_LEFT = 'top-left',
-  TOP_RIGHT = 'top-right',
-  BOTTOM_LEFT = 'bottom-left',
-  BOTTOM_RIGHT = 'bottom-right',
-  CENTER = 'center',
-  TILED = 'tiled'
-}
+const WatermarkPosition = {
+  TOP_LEFT: 'top-left',
+  TOP_RIGHT: 'top-right',
+  BOTTOM_LEFT: 'bottom-left',
+  BOTTOM_RIGHT: 'bottom-right',
+  CENTER: 'center',
+  TILED: 'tiled'
+} as const;
+
+type WatermarkPositionType = typeof WatermarkPosition[keyof typeof WatermarkPosition];
 
 interface WatermarkSettings {
   text: string;
   fontSize: number;
   color: string;
   opacity: number;
-  position: WatermarkPosition;
+  position: WatermarkPositionType;
   padding: number;
   rotation: number;
   tilingGap: number;
@@ -160,7 +162,7 @@ const processImage = (
       };
       img.src = e.target?.result as string;
     };
-    reader.onerror = reject;
+    reader.onerror = () => reject('File reading failed');
     reader.readAsDataURL(file);
   });
 };
@@ -168,14 +170,14 @@ const processImage = (
 // --- COMPONENTS ---
 
 const Header: React.FC = () => (
-  <header className="bg-white border-b-[6px] border-black px-8 py-6 flex items-center justify-between sticky top-0 z-10 text-black">
+  <header className="bg-white border-b-[6px] border-black px-8 py-6 flex items-center justify-between sticky top-0 z-10 shadow-sm">
     <div className="flex items-center gap-4">
       <div className="w-12 h-12 bg-[#FF0000] border-[4px] border-black flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
         <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="square" strokeLinejoin="miter" strokeWidth="3" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
       </div>
-      <h1 className="text-2xl font-black uppercase tracking-tighter">WebSnap <span className="text-black opacity-50">/ Resizer</span></h1>
+      <h1 className="text-2xl font-black uppercase tracking-tighter text-black">WebSnap <span className="opacity-40">/ Resizer</span></h1>
     </div>
     <div className="hidden md:flex gap-1 h-12">
       <div className="w-4 bg-[#FFFF00] border-l-[4px] border-black"></div>
@@ -195,24 +197,24 @@ const Sidebar: React.FC<{
   const handleResizeChange = (key: keyof ResizeSettings, value: any) => setResize(prev => ({ ...prev, [key]: value }));
 
   return (
-    <aside className="w-full lg:w-96 bg-white border-b-[6px] lg:border-b-0 lg:border-r-[6px] border-black h-auto lg:h-screen lg:sticky lg:top-0 overflow-y-auto text-black">
+    <aside className="w-full lg:w-96 bg-white border-b-[6px] lg:border-b-0 lg:border-r-[6px] border-black h-auto lg:h-screen lg:sticky lg:top-0 overflow-y-auto">
       <div className="p-8 space-y-12">
         <section className="space-y-6">
           <div className="bg-yellow-400 border-[4px] border-black p-2 -ml-8 pr-8 w-fit shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-            <h3 className="text-sm font-black uppercase tracking-widest text-black">Dimensions</h3>
+            <h3 className="text-sm font-black uppercase tracking-widest">Dimensions</h3>
           </div>
           <div className="space-y-6">
             <div>
-              <label className="block text-xs font-black uppercase mb-2 text-black">Max Width (px)</label>
-              <input type="number" value={resize.maxWidth} onChange={(e) => handleResizeChange('maxWidth', parseInt(e.target.value))} className="w-full px-4 py-3 bg-white border-[4px] border-black focus:bg-blue-50 focus:outline-none font-bold text-black" />
+              <label className="block text-xs font-black uppercase mb-2">Max Width (px)</label>
+              <input type="number" value={resize.maxWidth} onChange={(e) => handleResizeChange('maxWidth', parseInt(e.target.value))} className="w-full px-4 py-3 bg-white border-[4px] border-black focus:bg-blue-50 focus:outline-none font-black" />
             </div>
             <div>
-              <label className="block text-xs font-black uppercase mb-2 flex justify-between text-black">Quality <span>{Math.round(resize.quality * 100)}%</span></label>
+              <label className="block text-xs font-black uppercase mb-2 flex justify-between">Quality <span>{Math.round(resize.quality * 100)}%</span></label>
               <input type="range" min="0.1" max="1" step="0.05" value={resize.quality} className="w-full h-8 appearance-none bg-white border-[4px] border-black accent-black cursor-pointer" onChange={(e) => handleResizeChange('quality', parseFloat(e.target.value))} />
             </div>
             <div>
-              <label className="block text-xs font-black uppercase mb-2 text-black">Format</label>
-              <select value={resize.format} onChange={(e) => handleResizeChange('format', e.target.value)} className="w-full px-4 py-3 bg-white border-[4px] border-black focus:outline-none font-bold appearance-none cursor-pointer text-black">
+              <label className="block text-xs font-black uppercase mb-2">Format</label>
+              <select value={resize.format} onChange={(e) => handleResizeChange('format', e.target.value as any)} className="w-full px-4 py-3 bg-white border-[4px] border-black focus:outline-none font-black appearance-none cursor-pointer">
                 <option value="image/jpeg">JPEG</option>
                 <option value="image/png">PNG</option>
                 <option value="image/webp">WEBP</option>
@@ -222,44 +224,44 @@ const Sidebar: React.FC<{
         </section>
 
         <section className="space-y-6">
-          <div className="bg-blue-600 border-[4px] border-black p-2 -ml-8 pr-8 w-fit shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-black">
+          <div className="bg-blue-600 border-[4px] border-black p-2 -ml-8 pr-8 w-fit shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
             <h3 className="text-sm font-black uppercase tracking-widest">Watermark</h3>
           </div>
           <div className="space-y-6">
             <div>
-              <label className="block text-xs font-black uppercase mb-2 text-black">Text Content</label>
-              <input type="text" value={watermark.text} onChange={(e) => handleChange('text', e.target.value)} className="w-full px-4 py-3 bg-white border-[4px] border-black focus:bg-blue-50 focus:outline-none font-bold text-black" />
+              <label className="block text-xs font-black uppercase mb-2">Text Content</label>
+              <input type="text" value={watermark.text} onChange={(e) => handleChange('text', e.target.value)} className="w-full px-4 py-3 bg-white border-[4px] border-black focus:bg-blue-50 focus:outline-none font-black" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-black uppercase mb-2 text-black">Font Size</label>
-                <input type="number" value={watermark.fontSize} onChange={(e) => handleChange('fontSize', parseInt(e.target.value))} className="w-full px-4 py-3 bg-white border-[4px] border-black font-bold text-black" />
+                <label className="block text-xs font-black uppercase mb-2">Font Size</label>
+                <input type="number" value={watermark.fontSize} onChange={(e) => handleChange('fontSize', parseInt(e.target.value))} className="w-full px-4 py-3 bg-white border-[4px] border-black font-black" />
               </div>
               <div>
-                <label className="block text-xs font-black uppercase mb-2 text-black">Rotation</label>
-                <input type="number" value={watermark.rotation} onChange={(e) => handleChange('rotation', parseInt(e.target.value))} className="w-full px-4 py-3 bg-white border-[4px] border-black font-bold text-black" />
+                <label className="block text-xs font-black uppercase mb-2">Rotation</label>
+                <input type="number" value={watermark.rotation} onChange={(e) => handleChange('rotation', parseInt(e.target.value))} className="w-full px-4 py-3 bg-white border-[4px] border-black font-black" />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-black uppercase mb-2 text-black">Color</label>
+              <label className="block text-xs font-black uppercase mb-2">Color</label>
               <div className="flex gap-3">
                 <input type="color" value={watermark.color} onChange={(e) => handleChange('color', e.target.value)} className="w-16 h-12 bg-white border-[4px] border-black cursor-pointer appearance-none p-1" />
-                <input type="text" value={watermark.color.toUpperCase()} onChange={(e) => handleChange('color', e.target.value)} className="flex-1 px-4 py-3 bg-white border-[4px] border-black font-bold uppercase text-sm text-black" />
+                <input type="text" value={watermark.color.toUpperCase()} onChange={(e) => handleChange('color', e.target.value)} className="flex-1 px-4 py-3 bg-white border-[4px] border-black font-black uppercase text-sm" />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-black uppercase mb-2 flex justify-between text-black">Opacity <span>{watermark.opacity}</span></label>
+              <label className="block text-xs font-black uppercase mb-2 flex justify-between">Opacity <span>{watermark.opacity}</span></label>
               <input type="range" min="0.1" max="1" step="0.1" value={watermark.opacity} onChange={(e) => handleChange('opacity', parseFloat(e.target.value))} className="w-full h-8 appearance-none bg-[#FFFF00] border-[4px] border-black accent-black cursor-pointer" />
             </div>
             <div>
-              <label className="block text-xs font-black uppercase mb-2 flex justify-between text-black">Contrast <span>{watermark.contrast}</span></label>
-              <input type="range" min="-100" max="100" step="1" value={watermark.contrast} onChange={(e) => handleChange('contrast', parseInt(e.target.value))} className="w-full h-8 appearance-none bg-[#FF0000] border-[4px] border-black accent-black cursor-pointer" />
-            </div>
-            <div>
-              <label className="block text-xs font-black uppercase mb-2 text-black">Position</label>
+              <label className="block text-xs font-black uppercase mb-2">Position</label>
               <div className="grid grid-cols-3 gap-0 border-[4px] border-black">
                 {Object.values(WatermarkPosition).map((pos) => (
-                  <button key={pos} onClick={() => handleChange('position', pos)} className={`px-2 py-4 text-[9px] font-black uppercase border-black border-r border-b transition-all ${watermark.position === pos ? 'bg-red-600 text-black' : 'bg-white text-black hover:bg-yellow-200'}`}>
+                  <button 
+                    key={pos} 
+                    onClick={() => handleChange('position', pos)} 
+                    className={`px-2 py-4 text-[9px] font-black uppercase border-black border-r border-b transition-all ${watermark.position === pos ? 'bg-[#FF0000] !text-black' : 'bg-white hover:bg-yellow-200'}`}
+                  >
                     {pos.replace('-', ' ')}
                   </button>
                 ))}
@@ -269,8 +271,8 @@ const Sidebar: React.FC<{
         </section>
 
         {isProcessing && (
-          <div className="flex items-center justify-center p-6 bg-black text-black text-xs font-black uppercase tracking-widest animate-pulse border-[4px] border-black bg-opacity-20">
-            Rendering...
+          <div className="flex items-center justify-center p-6 bg-black border-[4px] border-black">
+             <span className="text-white text-xs font-black uppercase tracking-widest animate-pulse">Rendering...</span>
           </div>
         )}
       </div>
@@ -284,8 +286,11 @@ const Dropzone: React.FC<{ onFilesAdded: (files: File[]) => void }> = ({ onFiles
     if (e.target.files?.length) onFilesAdded(Array.from(e.target.files));
   };
   return (
-    <div onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); if (e.dataTransfer.files?.length) onFilesAdded(Array.from(e.dataTransfer.files)); }} className="max-w-3xl w-full p-4">
-      <div onClick={() => inputRef.current?.click()} className="relative border-[8px] border-black p-16 text-center cursor-pointer hover:bg-yellow-50 transition-all duration-300 bg-white shadow-[16px_16px_0px_0px_rgba(0,0,0,1)]">
+    <div className="max-w-3xl w-full p-4">
+      <div 
+        onClick={() => inputRef.current?.click()} 
+        className="relative border-[8px] border-black p-16 text-center cursor-pointer hover:bg-yellow-50 transition-all duration-300 bg-white shadow-[16px_16px_0px_0px_rgba(0,0,0,1)]"
+      >
         <input type="file" ref={inputRef} multiple accept="image/*" onChange={handleFileChange} className="hidden" />
         <div className="flex flex-col items-center gap-8">
           <div className="w-24 h-24 bg-yellow-400 border-[6px] border-black flex items-center justify-center shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
@@ -294,11 +299,11 @@ const Dropzone: React.FC<{ onFilesAdded: (files: File[]) => void }> = ({ onFiles
             </svg>
           </div>
           <div className="space-y-2">
-            <h3 className="text-3xl font-black uppercase tracking-tighter text-black">Import Canvas</h3>
-            <p className="text-black font-bold uppercase text-sm tracking-widest">Select files to begin</p>
+            <h3 className="text-3xl font-black uppercase tracking-tighter">Import Canvas</h3>
+            <p className="font-black uppercase text-sm tracking-widest opacity-60">Drag images or click to browse</p>
           </div>
           <div className="flex gap-2 flex-wrap justify-center">
-            {['JPG', 'PNG', 'WEBP'].map(ext => <span key={ext} className="text-[10px] font-black border-[4px] border-black px-3 py-1 uppercase text-black">{ext}</span>)}
+            {['JPG', 'PNG', 'WEBP'].map(ext => <span key={ext} className="text-[10px] font-black border-[4px] border-black px-3 py-1 uppercase">{ext}</span>)}
           </div>
         </div>
       </div>
@@ -308,17 +313,19 @@ const Dropzone: React.FC<{ onFilesAdded: (files: File[]) => void }> = ({ onFiles
 
 const ImageGrid: React.FC<{ images: ProcessedImage[] }> = ({ images }) => {
   const [isZipping, setIsZipping] = useState(false);
+  
   const handleDownload = (img: ProcessedImage) => {
     const link = document.createElement('a');
     link.href = img.processedUrl;
     link.download = `WEBSNAP_${img.originalName}`;
     link.click();
   };
+
   const handleDownloadAll = async () => {
     if (!images.length) return;
     setIsZipping(true);
     try {
-      const zip = new (JSZip as any)();
+      const zip = new JSZip();
       images.forEach((img, i) => zip.file(`WEBSNAP_${i + 1}_${img.originalName}`, img.processedUrl.split(',')[1], { base64: true }));
       const content = await zip.generateAsync({ type: 'blob' });
       const link = document.createElement('a');
@@ -326,20 +333,31 @@ const ImageGrid: React.FC<{ images: ProcessedImage[] }> = ({ images }) => {
       link.download = `WEBSNAP_BUNDLE_${Date.now()}.zip`;
       link.click();
       URL.revokeObjectURL(link.href);
-    } catch (e) { console.error(e); } finally { setIsZipping(false); }
+    } catch (e) { 
+      console.error('ZIP generation failed', e); 
+    } finally { 
+      setIsZipping(false); 
+    }
   };
+
   return (
     <div className="space-y-8">
       {images.length > 0 && (
         <div className="flex justify-end">
-          <button onClick={handleDownloadAll} disabled={isZipping} className="group relative flex items-center gap-3 bg-black text-black px-8 py-4 border-[4px] border-black hover:bg-[#0000FF] transition-all disabled:opacity-50">
-            <span className="text-sm font-black uppercase tracking-widest text-white group-hover:text-black">
+          <button 
+            onClick={handleDownloadAll} 
+            disabled={isZipping} 
+            className="group relative flex items-center gap-3 bg-black px-8 py-4 border-[4px] border-black hover:bg-[#0000FF] transition-all disabled:opacity-50"
+          >
+            <span className="text-sm font-black uppercase tracking-widest !text-white">
                 {isZipping ? 'Bundling...' : 'Download All (ZIP)'}
             </span>
             <div className="w-6 h-6 bg-[#FFFF00] border-[2px] border-black flex items-center justify-center group-hover:rotate-12 transition-transform">
-              <svg className="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="square" strokeLinejoin="miter" strokeWidth="3" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+              <svg className="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="square" strokeLinejoin="miter" strokeWidth="3" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
             </div>
-            <div className="absolute -bottom-2 -left-2 w-4 h-4 bg-red-600 border-[2px] border-black"></div>
+            <div className="absolute -bottom-2 -left-2 w-4 h-4 bg-[#FF0000] border-[2px] border-black"></div>
           </button>
         </div>
       )}
@@ -349,18 +367,18 @@ const ImageGrid: React.FC<{ images: ProcessedImage[] }> = ({ images }) => {
             <div className="relative aspect-video bg-gray-100 flex items-center justify-center border-b-[6px] border-black">
               <img src={img.processedUrl} alt={img.originalName} className="max-w-full max-h-full object-contain" />
               <div className="absolute inset-0 bg-white/0 group-hover:bg-white/40 transition-all flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
-                <button onClick={() => handleDownload(img)} className="bg-blue-600 text-black border-[4px] border-black px-6 py-3 text-xs font-black uppercase tracking-widest hover:bg-yellow-400 transition-colors">Export</button>
+                <button onClick={() => handleDownload(img)} className="bg-blue-600 border-[4px] border-black px-6 py-3 text-xs font-black uppercase tracking-widest hover:bg-yellow-400 transition-colors">Export</button>
               </div>
             </div>
             <div className="p-6">
-              <p className="text-sm font-black uppercase tracking-tight truncate text-black">{img.originalName}</p>
+              <p className="text-sm font-black uppercase tracking-tight truncate">{img.originalName}</p>
               <div className="flex flex-wrap gap-2 mt-4">
-                <span className="text-[10px] font-black uppercase border-[3px] border-black px-2 py-1 bg-white text-black">{img.width} × {img.height}</span>
-                <span className="text-[10px] font-black uppercase border-[3px] border-black px-2 py-1 bg-[#0000FF] text-black">{(img.size / 1024).toFixed(1)} KB</span>
+                <span className="text-[10px] font-black uppercase border-[3px] border-black px-2 py-1 bg-white">{img.width} × {img.height}</span>
+                <span className="text-[10px] font-black uppercase border-[3px] border-black px-2 py-1 bg-[#0000FF] !text-white">{(img.size / 1024).toFixed(1)} KB</span>
               </div>
             </div>
-            <div className="h-6 flex border-t-[4px] border-black">
-               <div className="flex-1 bg-red-600"></div>
+            <div className="h-6 flex border-t-[4px] border-black mt-auto">
+               <div className="flex-1 bg-[#FF0000]"></div>
                <div className="flex-[0.5] bg-yellow-400 border-l-[4px] border-black"></div>
                <div className="flex-[0.2] bg-white border-l-[4px] border-black"></div>
             </div>
@@ -396,24 +414,43 @@ const App: React.FC = () => {
     try {
       const results = await Promise.all(files.map(f => processImage(f.file, watermark, resize)));
       setProcessedImages(results);
-    } catch (e) { console.error(e); } finally { setIsProcessing(false); }
+    } catch (e) { 
+      console.error('Processing failed', e); 
+    } finally { 
+      setIsProcessing(false); 
+    }
   }, [files, watermark, resize]);
 
-  useEffect(() => { if (files.length > 0) handleProcessAll(); }, [watermark, resize, files.length, handleProcessAll]);
+  useEffect(() => { 
+    if (files.length > 0) handleProcessAll(); 
+  }, [watermark, resize, files, handleProcessAll]);
 
   return (
-    <div className="flex flex-col min-h-screen bg-white lg:flex-row text-black">
+    <div className="flex flex-col min-h-screen bg-white lg:flex-row">
       <Sidebar watermark={watermark} setWatermark={setWatermark} resize={resize} setResize={setResize} isProcessing={isProcessing} />
       <main className="flex-1 flex flex-col min-w-0">
         <Header />
         <div className="flex-1 p-8 space-y-8 overflow-y-auto">
-          {files.length === 0 ? <div className="h-full flex items-center justify-center text-black"><Dropzone onFilesAdded={fs => setFiles(fs.map(f => ({ file: f, id: Math.random().toString(36) })))} /></div> : (
+          {files.length === 0 ? (
+            <div className="h-full flex items-center justify-center">
+              <Dropzone onFilesAdded={fs => setFiles(fs.map(f => ({ file: f, id: Math.random().toString(36) })))} />
+            </div>
+          ) : (
             <div className="space-y-8">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white border-[4px] border-black p-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-                <h2 className="text-2xl font-black uppercase tracking-tighter text-black">Collection ({processedImages.length})</h2>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white border-[4px] border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+                <h2 className="text-2xl font-black uppercase tracking-tighter">Collection ({processedImages.length})</h2>
                 <div className="flex gap-4">
-                  <button onClick={() => { setFiles([]); setProcessedImages([]); }} className="px-6 py-2 text-sm font-black uppercase border-[4px] border-black hover:bg-red-600 hover:text-black transition-colors text-black">Clear</button>
-                  <button onClick={handleProcessAll} disabled={isProcessing} className="px-8 py-2 text-sm font-black uppercase bg-yellow-400 border-[4px] border-black hover:bg-blue-600 hover:text-black transition-colors disabled:opacity-50 text-black">
+                  <button 
+                    onClick={() => { setFiles([]); setProcessedImages([]); }} 
+                    className="px-6 py-2 text-sm font-black uppercase border-[4px] border-black hover:bg-red-600 transition-colors"
+                  >
+                    Clear
+                  </button>
+                  <button 
+                    onClick={handleProcessAll} 
+                    disabled={isProcessing} 
+                    className="px-8 py-2 text-sm font-black uppercase bg-yellow-400 border-[4px] border-black hover:bg-blue-600 hover:!text-white transition-colors disabled:opacity-50"
+                  >
                     {isProcessing ? 'Syncing...' : 'Sync Settings'}
                   </button>
                 </div>
@@ -429,5 +466,12 @@ const App: React.FC = () => {
 
 // --- RENDER ---
 
-const root = ReactDOM.createRoot(document.getElementById('root')!);
-root.render(<App />);
+const rootElement = document.getElementById('root');
+if (rootElement) {
+    const root = createRoot(rootElement);
+    root.render(
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>
+    );
+}
