@@ -15,8 +15,12 @@
         body { 
             font-family: 'Inter', sans-serif; 
             background-color: #ffffff;
+            color: #000000 !important;
             -webkit-font-smoothing: antialiased;
             overflow-x: hidden;
+        }
+        * {
+            color: inherit;
         }
         ::-webkit-scrollbar { width: 12px; }
         ::-webkit-scrollbar-track { background: #fff; border-left: 4px solid #000; }
@@ -35,7 +39,7 @@
     }
     </script>
 </head>
-<body>
+<body class="text-black">
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
 </body>
